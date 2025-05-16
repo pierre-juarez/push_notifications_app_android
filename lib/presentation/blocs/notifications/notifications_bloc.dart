@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,8 +18,12 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  int pushNumberId = 0;
 
-  NotificationsBloc() : super(const NotificationsState()) {
+  final Future<void> Function()? requestPermissionLocalNotifications;
+  final void Function({required int id, String? title, String? body, String? data})? showLocalNotification;
+
+  NotificationsBloc({this.requestPermissionLocalNotifications, this.showLocalNotification}) : super(const NotificationsState()) {
     on<NotificationStatusChanged>(_notificationStatusChanged);
     on<NotificationReceived>(_onPushMessageRecieved);
 
@@ -73,6 +76,23 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
 
     print(notification);
 
+    if (showLocalNotification != null) {
+      showLocalNotification!(
+        id: ++pushNumberId,
+        title: notification.title,
+        body: notification.body,
+        data: notification.messageId,
+        // data: notification.data.toString(),
+      );
+    }
+
+    // LocalNotifications.showLocalNotification(
+    //   id: ++pushNumberId,
+    //   title: notification.title,
+    //   body: notification.body,
+    //   data: notification.data.toString(),
+    // );
+
     add(NotificationReceived(notification));
   }
 
@@ -90,6 +110,13 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
       provisional: false,
       sound: true,
     );
+
+    // Solicitar permiso a las local notifications
+    if (requestPermissionLocalNotifications != null) {
+      requestPermissionLocalNotifications!();
+    }
+    // await LocalNotifications.requestPermissionLocalNotifications();
+
     add(NotificationStatusChanged(settings.authorizationStatus));
   }
 
@@ -99,5 +126,4 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
 
     return state.notifications.firstWhere((element) => element.messageId == id);
   }
-
 }
